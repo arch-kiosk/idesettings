@@ -1,0 +1,203 @@
+header:
+  version: 1.0
+variables:
+  context_identifier: [ datatype(VARCHAR) ]
+  unit: [ datatype(VARCHAR) ]
+  locus: [ datatype(VARCHAR) ]
+  year: [ datatype(NUMBER) ]
+base_queries:
+  "This year's loci":
+    description: "creates a report of this year's loci/contexts"
+    type: 'SQL'
+    query: "
+    select arch_context, extract(year from now()) as year from {{locus}} locus
+    where extract(year from locus.date_defined) = extract(year from now())
+    "
+  "a certain year's loci":
+    description: "creates a report of a certain year's loci/contexts"
+    type: 'SQL'
+    required_variables: [ 'year']
+    query: "
+    select arch_context from {{locus}} locus
+    where extract(year from locus.date_defined) = {{#year}}
+    "
+  "loci of certain unit":
+    description: "creates reports for all loci/contexts of a unit/area."
+    required_variables: [ 'unit']
+    type: 'SQL'
+    query: "
+      select distinct l.arch_context, extract(year from now()) as year from {{locus}} as l 
+      inner join {{unit}} as u on l.uid_unit = u.uid
+      where u.arch_context = {{#unit}}
+      "
+
+  "a certain locus":
+    description: "creates a report for a certain context"
+    required_variables: [ 'locus']
+    type: 'SQL'
+    query: "
+      select distinct l.arch_context, extract(year from now()) as year from {{locus}} l 
+      where l.arch_context = {{#locus}}
+      "
+
+queries:
+  'context_data':
+    type: 'SQL'
+    query: "
+    select locus.*, unit.arch_context unit_id, 
+    site.id_short site_id_short, site.id site_id,
+    recorder.name recorder_name from {{locus}} as locus 
+    inner join {{unit}} as unit on locus.uid_unit = unit.uid
+    inner join {{site}} as site on unit.id_site = site.id
+    left outer join {{excavator}} recorder on locus.recorded_by = recorder.id 
+    where 
+    locus.arch_context={{#context_identifier}}
+    "
+    output_type: 'key-value'
+  'sample_count':
+    type: 'SQL'
+    query: "
+      select count(cm.uid) sample_count from {{locus}} l
+          inner join {{collected_material}} cm on l.uid = cm.uid_locus
+      where cm.cm_type = 'sample' and 
+      l.arch_context={{#context_identifier}}
+    "
+    output_type: 'key-value'
+  'floatation_count':
+    type: 'SQL'
+    query: "
+      select count(cm.uid) floatation_count from {{locus}} l
+          inner join {{collected_material}} cm on l.uid = cm.uid_locus
+      where cm.collection_method ilike 'floatation' and 
+      l.arch_context={{#context_identifier}}
+    "
+    output_type: 'key-value'
+  'sieving_count':
+    type: 'SQL'
+    query: "
+      select count(cm.uid) sieving_count from {{locus}} l
+          inner join {{collected_material}} cm on l.uid = cm.uid_locus
+      where cm.collection_method ilike 'sieving' and 
+      l.arch_context={{#context_identifier}}
+    "
+    output_type: 'key-value'
+  'locus_relations':
+    type: 'SQL'
+    query: "
+    select r.type relation_type, l2.arch_context to_locus from {{locus}} as l 
+    inner join {{locus_relations}} as r 
+    on l.uid = r.uid_locus
+    inner join {{locus}} as l2
+    on r.uid_locus_2_related = l2.uid
+    where
+    l.arch_context={{#context_identifier}}
+    and coalesce(r.type, '') <> '' 
+    order by r.type, l2.arch_context
+    "
+    output_type: 'list'
+    output_table: 'locus_relations'
+  'locus_chron_relations':
+    type: 'SQL'
+    query: "
+    select r.chronology relation_type, l2.arch_context to_locus from {{locus}} as l 
+    inner join {{locus_relations}} as r 
+    on l.uid = r.uid_locus
+    inner join {{locus}} as l2
+    on r.uid_locus_2_related = l2.uid
+    where
+    l.arch_context={{#context_identifier}}
+    and coalesce(r.chronology, '') <> '' 
+    order by r.type, l2.arch_context
+    "
+    output_type: 'list'
+    output_table: 'locus_chronology'
+  'locus_photos':
+    type: 'SQL'
+    query: "
+    select p.uid_image uid_image from {{locus}} as l 
+    inner join {{locus_photo}} as p 
+    on l.uid = p.uid_locus
+    where
+    l.arch_context={{#context_identifier}}
+    "
+    output_type: 'list'
+    output_table: 'locus_photos'
+  'organic_components':
+    type: 'SQL'
+    query: "
+    select foo.material material, count(locus.uid)::varchar c from {{locus}} locus
+    inner join {{collected_material}} collected_material on collected_material.uid_locus = locus.uid
+    inner join (values
+                 ('animal bone'),
+                 ('human remains'),
+                 ('ivory'),
+                 ('leather'),
+                 ('organic'),
+                 ('paper'),
+                 ('papyrus'),
+                 ('shell'),
+                 ('stone'),
+                 ('textile'),
+                 ('wood')) as foo(material)
+  on foo.material = collected_material.type  
+  where locus.arch_context={{#context_identifier}} 
+  group by foo.material 
+  order by c, material
+  "
+    output_type: 'list'
+    output_table: 'organic_components'
+
+mapping:
+  'year': '#year'
+  'context_id': '#arch_context'
+  'site_id': '#site_id_short'
+  'area': '#site_id'
+  'trench': '#unit_id'
+  'room_func_unit':
+    - '#unit_id'
+    - prepend('Room ')
+  'type_of_feature':
+    - '#type'
+    - lookup('locus_types', 'id')?'#type_name'
+  'formation_natural':
+    - '#formation_process'
+    - in('anthropogenic')?'':'X'
+  'formation_artificial':
+    - '#formation_process'
+    - in('anthropogenic')?'X':''
+  'type_positive':
+    - '#type'
+    - in('cut')?'':'X'
+  'type_negative':
+    - '#type'
+    - in('cut')?'X':''
+  'description': '#description'
+  'interpretation': '#interpretation'
+  'components_organic': '#organic_components'
+  'color': '#colour'
+  'measurements':
+    - '#width'
+    - append('mm x ','#length', ' mm')
+    - has_value('#width'):''
+  'physical_sequence': '#locus_relations'
+  'stratigraphic_sequence': '#locus_chronology'
+  'samples': '#sample_count'
+  'floatation': '#floatation_count'
+  'sieving': '#sieving_count'
+  'director_excavation': 'Candace & Co.'
+  'date_detected_field': '#date_defined'
+  'person_responsible_fieldwork': '#recorder_name'
+  'photographs': '#locus_photos'
+lists:
+  'locus_relations':
+    columns: ["relation_type", "to_locus"]
+  'locus_chronology':
+    columns: ["relation_type", "to_locus"]
+  'organic_components':
+    columns: ["material", "c"]
+    column_divider: ": "
+  'locus_photos':
+    columns: ["uid_image"]
+    render_filename: "uid_image"
+    render_filename_method: "uid"
+    row_prefix: "- "

@@ -1,0 +1,229 @@
+import_configurations:
+- kiosk_default_config.yml
+
+Flask:
+  EXPLAIN_TEMPLATE_LOADING: false
+  SECRET_KEY: A normal Key
+  SOME_OPERATION: Something
+  THREADED: false
+config:
+  base_path: %base_path%
+  database_name: ustp
+  dataset_definition: '%base_path%\config\dsd\default_dsd3.yml'
+  expected_filemaker_template_version: '12'
+  file_handling_definition: '%base_path%\config\file_handling.yml'
+  file_identifier_cache_sql: '%sync%\config\sql\urap_create_file_identifier_cache.sql'
+  file_repository: '%sync%\file_repository'
+  filemaker_db_filename: ustp_recording.fmp12
+  filemaker_encoding: UTF-8
+  filemaker_export_dir: '%sync%\filemaker\to_work_station'
+  filemaker_import_dir: '%sync%\filemaker\from_work_station'
+  filemaker_template: '%sync%\filemaker\ustp_recording_template.fmp12'
+  fork_ignore_missing_files: true
+  general_store_class: RedisGeneralStore
+  general_store_plugin: redisgeneralstore
+  image_manipulation_config: '%base_path%\config\image_manipulation_config.yml'
+  job_garbage_collector_sleeps: 120
+  log_level: DEBUG
+  log_to_screen: false
+  logfile: '%base_path%\log\ustp_#a_#d#m#y-#H#M.log'
+  master_view: '%sync%\config\urap_master_view.yml'
+  odbc_ini_dsn: ustp
+  project_id: ustp
+  redis_address: 127.0.0.1
+  redis_port: 6379
+  static_image_path: %base_path%\static\assets\images
+  sync: %base_path%\sync\sync
+  sync_plugin_directory: '%sync%\sync_plugins'
+  test_mode: false
+  thumbnail_dir: '%file_repository%\thumbnails'
+  use_double_commit: false
+  werkzeug_log_level: WARNING
+file_handlers:
+  plugins:
+  - defaultfilehandling
+  - heicfilehandling
+  - pdffilehandling
+  - svgfilehandling
+file_import:
+  add_only_with_excavation_context: true
+  file_extensions:
+  - jpg
+  file_import_filters:
+    local_import:
+      FileImportExifFilter:
+        active: false
+        get_context_from_exif: false
+        get_date_from_exif: false
+        get_description_from_exif: true
+        priority: 25
+      FileImportQRCodeFilter:
+        active: true
+        get_date: true
+        get_excavation_context: true
+        image_manipulation_sets:
+        - qr_code_sahara
+        - qr_code_black_velvet
+        priority: 30
+        recognition_strategy: qr_code_sahara
+      FileImportStandardFileFilter:
+        active: true
+        get_context_from_file: true
+        get_date_from_file: false
+        priority: 20
+      FileImportStandardFolderFilter:
+        active: true
+        get_context_from_folder: true
+        get_date_from_folder: true
+        priority: 10
+      FileImportStandardValuesFilter:
+        active: false
+        priority: 0
+    upload:
+      FileImportExifFilter:
+        active: false
+        get_context_from_exif: false
+        get_date_from_exif: false
+        get_description_from_exif: true
+        priority: 15
+      FileImportQRCodeFilter:
+        active: false
+        get_date: true
+        get_excavation_context: true
+        image_manipulation_sets:
+        - qr_code_sahara
+        - qr_code_black_velvet
+        priority: 30
+        recognition_strategy: qr_code_sahara
+      FileImportStandardFileFilter:
+        active: true
+        get_context_from_file: true
+        get_date_from_file: true
+        priority: 20
+      FileImportStandardValuesFilter:
+        active: false
+        priority: 0
+  filename_encodings: []
+  folder_encodings: []
+  log_import: true
+  max_file_uploads: 10
+  recursive: true
+  tags: []
+  use_uuid: true
+file_repository:
+  auto_representations:
+  - medium
+  - small
+  cache: '%file_repository%\cache'
+  fullscreen_representation: master
+  recording_context_aliases:
+    collected_material_photo: collected material photos
+    dayplan: dayplans
+    locus: context
+    locus_photo: context photos
+    locus_relations: context relations
+    pottery_images: pottery
+    site: site map
+    site_note_photo: site note photos
+    unit: trench/area
+  representations:
+    1024x768:
+      dimensions: 1024,768
+      format_request: default
+      inherits: master
+      requested_manipulations:
+      - DROP_EXIF_DATA
+    RAW2400x2500:
+      dimensions: 2400,2500
+      format_request: NEFTIF
+      requested_manipulations:
+      - DROP_EXIF_DATA
+    master:
+      dimensions: 4000,2000
+      format_request: default
+      requested_manipulations:
+      - FIX_ROTATION
+      - DROP_EXIF_DATA
+    medium:
+      dimensions: 256,256
+      format_request: default
+      inherits: master
+      label: medium thumbnail
+    small:
+      dimensions: 128,128
+      format_request: default
+      inherits: master
+      label: small thumbnail
+  standard_format_requests:
+    NEFTIF:
+      NEF: JPEG
+      TIFF: JPEG
+    default:
+      '*': JPEG
+      PNG: '!'
+      SVG: '!'
+  thumbnails:
+  - small
+  - medium
+kiosk:
+  administrationplugin:
+    active: true
+    backup_filename_template: ustp_#a_#d#m#y-#H#M#S.dmp
+    defaults:
+      backup_directory: E:\ustp\backup
+      backup_workstation_directories: false
+      restore_file: E:\ustp\backup
+    is_main_index: false
+  base_path: %base_path%
+  bugsandfeaturesplugin:
+    active: true
+    is_main_index: false
+    menu:
+      import files:
+      - -bugsandfeaturesplugin
+  custom_kiosk_modules: '%base_path%\custom'
+  dailyreviewplugin:
+    active: false
+    is_main_index: false
+  directorsviewplugin:
+    active: true
+    is_main_index: false
+    menu:
+      director's view:
+      - -directorsviewplugin
+  fileimportplugin:
+    active: true
+    allow_operations:
+    - upload
+    is_main_index: false
+    menu:
+      import files:
+      - +filerepositoryplugin
+  global_constants:
+    project_logo_bottom: ' '
+    project_logo_main: Upper Sabina Tiberina Project
+    project_logo_top: ''
+    project_name: Upper Sabina Tiberina Project
+    project_short: USTP
+  local_import_paths: []
+  local_importpaths: null
+  login_plugin:
+    active: true
+  playgroundplugin:
+    active: false
+    defaults: foo
+    is_main_index: false
+    menu:
+      developer's playground:
+      - -playgroundplugin
+  plugin_path: %base_path%\plugins
+  reset_file: '%base_path%\reset.yml'
+  startup_threads:
+  - RedisGarbageCollector
+  static_image_path: %base_path%\static\assets\images
+  suppress_messages:
+    SYS_MSG_ID_MCP_NOT_UP: true
+  template_path: %base_path%\templates
+  temporary_upload_path: %base_path%\sync\sync\file_repository\temp
+  workstationmanagerplugin:
+    active: false
